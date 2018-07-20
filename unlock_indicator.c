@@ -52,8 +52,13 @@ extern char *modifier_string;
 /* A Cairo surface containing the specified image (-i), if any. */
 extern cairo_surface_t *img;
 
+/* A Cairo surface containing the specified image on click (-C), if any. */
+extern cairo_surface_t *click_img;
+
 /* Whether the image should be tiled. */
 extern bool tile;
+/* Whether the user has clicked */
+extern bool clicked;
 /* The background color to use (in hex). */
 extern char color[7];
 
@@ -105,14 +110,15 @@ xcb_pixmap_t draw_image(uint32_t *resolution) {
     cairo_surface_t *xcb_output = cairo_xcb_surface_create(conn, bg_pixmap, vistype, resolution[0], resolution[1]);
     cairo_t *xcb_ctx = cairo_create(xcb_output);
 
-    if (img) {
+    if (img || (clicked && click_img)) {
+        cairo_surface_t *image = (clicked && click_img) ? click_img : img;
         if (!tile) {
-            cairo_set_source_surface(xcb_ctx, img, 0, 0);
+            cairo_set_source_surface(xcb_ctx, image, 0, 0);
             cairo_paint(xcb_ctx);
         } else {
             /* create a pattern and fill a rectangle as big as the screen */
             cairo_pattern_t *pattern;
-            pattern = cairo_pattern_create_for_surface(img);
+            pattern = cairo_pattern_create_for_surface(image);
             cairo_set_source(xcb_ctx, pattern);
             cairo_pattern_set_extend(pattern, CAIRO_EXTEND_REPEAT);
             cairo_rectangle(xcb_ctx, 0, 0, resolution[0], resolution[1]);

@@ -93,7 +93,9 @@ static uint8_t xkb_base_error;
 static int randr_base = -1;
 
 cairo_surface_t *img = NULL;
+cairo_surface_t *click_img = NULL;
 bool tile = false;
+bool clicked = false;
 bool ignore_empty_password = false;
 bool skip_repeated_empty_password = false;
 
@@ -759,6 +761,11 @@ static void xcb_check_cb(EV_P_ ev_check *w, int revents) {
                 handle_key_press((xcb_key_press_event_t *)event);
                 break;
 
+            case XCB_BUTTON_PRESS:
+                clicked = true;
+                redraw_screen();
+                break;
+
             case XCB_VISIBILITY_NOTIFY:
                 handle_visibility_notify(conn, (xcb_visibility_notify_event_t *)event);
                 break;
@@ -856,6 +863,7 @@ int main(int argc, char *argv[]) {
     struct passwd *pw;
     char *username;
     char *image_path = NULL;
+    char *click_image_path = NULL;
 #ifndef __OpenBSD__
     int ret;
     struct pam_conv conv = {conv_callback, NULL};
@@ -874,6 +882,7 @@ int main(int argc, char *argv[]) {
         {"help", no_argument, NULL, 'h'},
         {"no-unlock-indicator", no_argument, NULL, 'u'},
         {"image", required_argument, NULL, 'i'},
+        {"click-image", required_argument, NULL, 'C'},
         {"tiling", no_argument, NULL, 't'},
         {"ignore-empty-password", no_argument, NULL, 'e'},
         {"inactivity-timeout", required_argument, NULL, 'I'},
@@ -885,7 +894,7 @@ int main(int argc, char *argv[]) {
     if ((username = pw->pw_name) == NULL)
         errx(EXIT_FAILURE, "pw->pw_name is NULL.\n");
 
-    char *optstring = "hvnbdc:p:ui:teI:f";
+    char *optstring = "hvnbdc:p:ui:C:teI:f";
     while ((o = getopt_long(argc, argv, optstring, longopts, &longoptind)) != -1) {
         switch (o) {
             case 'v':
@@ -921,6 +930,9 @@ int main(int argc, char *argv[]) {
             case 'i':
                 image_path = strdup(optarg);
                 break;
+            case 'C':
+                click_image_path = strdup(optarg);
+                break;
             case 't':
                 tile = true;
                 break;
@@ -945,7 +957,7 @@ int main(int argc, char *argv[]) {
                 break;
             default:
                 errx(EXIT_FAILURE, "Syntax: i3lock [-v] [-n] [-b] [-d] [-c color] [-u] [-p win|default]"
-                                   " [-i image.png] [-t] [-e] [-I timeout] [-f]");
+                                   " [-i image.png] [-C clickimage.png] [-t] [-e] [-I timeout] [-f]");
         }
     }
 
@@ -1056,6 +1068,18 @@ int main(int argc, char *argv[]) {
         }
     }
     free(image_path);
+
+    if (verify_png_image(click_image_path)) {
+        /* Create a pixmap to render on, fill it with the background color */
+        click_img = cairo_image_surface_create_from_png(click_image_path);
+        /* In case loading failed, we just pretend no -I was specified. */
+        if (cairo_surface_status(click_img) != CAIRO_STATUS_SUCCESS) {
+            fprintf(stderr, "Could not load image \"%s\": %s\n",
+                    click_image_path, cairo_status_to_string(cairo_surface_status(click_img)));
+            click_img = NULL;
+        }
+    }
+    free(click_image_path);
 
     /* Pixmap on which the image is rendered to (if any) */
     xcb_pixmap_t bg_pixmap = draw_image(last_resolution);

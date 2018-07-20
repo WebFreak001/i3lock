@@ -123,6 +123,8 @@ xcb_window_t open_fullscreen_window(xcb_connection_t *conn, xcb_screen_t *scr, c
     values[2] = XCB_EVENT_MASK_EXPOSURE |
                 XCB_EVENT_MASK_KEY_PRESS |
                 XCB_EVENT_MASK_KEY_RELEASE |
+                XCB_EVENT_MASK_BUTTON_PRESS |
+                XCB_EVENT_MASK_BUTTON_RELEASE |
                 XCB_EVENT_MASK_VISIBILITY_CHANGE |
                 XCB_EVENT_MASK_STRUCTURE_NOTIFY;
 
@@ -188,9 +190,9 @@ bool grab_pointer_and_keyboard(xcb_connection_t *conn, xcb_screen_t *screen, xcb
     while (tries-- > 0) {
         pcookie = xcb_grab_pointer(
             conn,
-            false,               /* get all pointer events specified by the following mask */
+            true,                /* get all pointer events specified by the following mask */
             screen->root,        /* grab the root window */
-            XCB_NONE,            /* which events to let through */
+            XCB_EVENT_MASK_BUTTON_PRESS, /* which events to let through */
             XCB_GRAB_MODE_ASYNC, /* pointer events should continue as normal */
             XCB_GRAB_MODE_ASYNC, /* keyboard mode */
             XCB_NONE,            /* confine_to = in which window should the cursor stay */
